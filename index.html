@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ACINAN MISSION</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a0f0a;
+            color: #d4af37;
+            font-family: 'Cinzel', serif;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 15px solid transparent;
+            border-image: url('https://www.transparenttextures.com/patterns/dark-wood.png') 30 stretch;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        canvas {
+            display: block;
+            background: radial-gradient(circle, #3d2b1f 0%, #1a0f0a 100%);
+        }
+
+        #ui {
+            position: absolute;
+            top: 40px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .stat-box {
+            background: rgba(40, 25, 15, 0.8);
+            border: 2px solid #8b5a2b;
+            padding: 5px 20px;
+            border-radius: 5px;
+            color: #e0c090;
+        }
+
+        #msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: #2b1d14 url('https://www.transparenttextures.com/patterns/leather.png');
+            padding: 30px;
+            border: 8px double #8b5a2b;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 320px;
+            z-index: 1100;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+
+        #clearImageContainer {
+            display: none;
+            margin: 15px 0;
+        }
+
+        #clearImageContainer img {
+            max-width: 100%;
+            height: auto;
+            border: 3px solid #d4af37;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 35px;
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            background: linear-gradient(to bottom, #8b5a2b, #4e3215);
+            border: 1px solid #d4af37;
+            border-radius: 3px;
+            cursor: pointer;
+            color: #f0e0d0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div class="stat-box">SCORE: <span id="score">0</span></div>
+        <div class="stat-box">PAINTINGS: <span id="junkCount">0</span></div>
+    </div>
+
+    <div id="msg">
+        <h2 id="msgTitle">ACINAN MISSION</h2>
+        <div id="clearImageContainer">
+            <img id="clearImg" src="" alt="Mission Clear Graphic">
+        </div>
+        <div id="msgTextContainer">
+            <p id="msgText">アシナンを操り、爆弾を避けて生き残ろう。<br>長押しで旋回できるよ。<br><br>1秒につき1pt増えるよ。<br>絵画を集めると10ptボーナス！<br>100ptでクリアだ！</p>
+        </div>
+        <button id="mainBtn" onclick="startGame()">MISSION START</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const junkCountEl = document.getElementById('junkCount');
+    const msgEl = document.getElementById('msg');
+    const msgTitle = document.getElementById('msgTitle');
+    const msgText = document.getElementById('msgText');
+    const clearImageContainer = document.getElementById('clearImageContainer');
+    const clearImg = document.getElementById('clearImg');
+    const mainBtn = document.getElementById('mainBtn');
+
+    // 画像設定（GitHubデプロイ時にファイルパスを合わせてください）
+    const CLEAR_IMAGE_URL = "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=300&auto=format&fit=crop"; 
+    const ASINAN_IMAGE_URL = "asinan.png"; // アシナンの画像パス
+    const BOMB_IMAGE_URL = "bomb.png";     // 爆弾の画像パス
+
+    // 画像オブジェクトのプリロード
+    const asinanImg = new Image();
+    asinanImg.src = ASINAN_IMAGE_URL;
+    const bombImg = new Image();
+    bombImg.src = BOMB_IMAGE_URL;
+
+    let gameActive = false;
+    let score = 0;
+    let paintingCount = 0;
+    let lastTimeScore = 0;
+    let items = [];
+    let enemies = [];
+    let stars = [];
+    let isPressing = false;
+
+    const player = {
+        x: 0,
+        y: 0,
+        angle: 0,
+        radius: 25,     // 画像のサイズ感に合わせて調整
+        hitRadius: 16,  // 当たり判定
+        speed: 3,
+        turnSpeed: 0.07,
+        tail: []
+    };
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        if (!gameActive) {
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+        }
+        initBackground();
+    }
+
+    function initBackground() {
+        stars = [];
+        for (let i = 0; i < 40; i++) {
+            stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2, alpha: Math.random() });
+        }
+    }
+
+    const setPress = (val) => { isPressing = val; };
+    window.addEventListener('touchstart', (e) => { setPress(true); if(gameActive) e.preventDefault(); }, { passive: false });
+    window.addEventListener('touchend', () => setPress(false));
+    window.addEventListener('mousedown', () => setPress(true));
+    window.addEventListener('mouseup', () => setPress(false));
+
+    function spawnItem() {
+        const margin = 80;
+        items.push({ 
+            x: margin + Math.random() * (canvas.width - margin * 2), 
+            y: margin + Math.random() * (canvas.height - margin * 2),
+            rotation: (Math.random() - 0.5) * 0.4,
+            pulse: 0,
+            size: 22
+        });
+    }
+
+    function spawnEnemy() {
+        const edge = Math.floor(Math.random() * 4);
+        let x, y, vx, vy;
+        const speed = 0.6 + Math.random() * 0.8;
+
+        if (edge === 0) { x = -60; y = Math.random() * canvas.height; vx = speed; vy = (Math.random() - 0.5); }
+        else if (edge === 1) { x = canvas.width + 60; y = Math.random() * canvas.height; vx = -speed; vy = (Math.random() - 0.5); }
+        else if (edge === 2) { x = Math.random() * canvas.width; y = -60; vx = (Math.random() - 0.5); vy = speed; }
+        else { x = Math.random() * canvas.width; y = canvas.height + 60; vx = (Math.random() - 0.5); vy = -speed; }
+
+        enemies.push({ x, y, vx, vy, radius: 20, rot: 0, rotS: (Math.random()-0.5)*0.05 });
+    }
+
+    function startGame() {
+        gameActive = true;
+        score = 0;
+        paintingCount = 0;
+        lastTimeScore = Date.now();
+        player.tail = [];
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        player.angle = -Math.PI / 2;
+        isPressing = false;
+        items = [];
+        enemies = [];
+        scoreEl.innerText = "0";
+        junkCountEl.innerText = "0";
+        msgEl.style.display = 'none';
+        clearImageContainer.style.display = 'none';
+        msgText.style.display = 'block';
+        for(let i=0; i<3; i++) spawnItem();
+    }
+
+    function gameOver() {
+        gameActive = false;
+        msgEl.style.display = 'block';
+
+        if (score >= 100) {
+            msgTitle.innerText = "MISSION CLEAR!!";
+            msgTitle.style.color = "#d4af37";
+            msgText.style.display = 'none';
+            clearImg.src = CLEAR_IMAGE_URL;
+            clearImageContainer.style.display = 'block';
+            mainBtn.innerText = "PLAY AGAIN";
+        } else {
+            msgTitle.innerText = "MISSION FAILED";
+            msgTitle.style.color = "#8b0000";
+            msgText.innerHTML = "爆弾に接触した！<br>100pt集めるとクリアだよ。";
+            msgText.style.display = 'block';
+            clearImageContainer.style.display = 'none';
+            mainBtn.innerText = "RETRY";
+        }
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        const now = Date.now();
+        if (now - lastTimeScore >= 1000) {
+            score += 1;
+            lastTimeScore = now;
+            scoreEl.innerText = score;
+            if (score >= 100) gameOver();
+        }
+
+        if (isPressing) player.angle += player.turnSpeed;
+        player.x += Math.cos(player.angle) * player.speed;
+        player.y += Math.sin(player.angle) * player.speed;
+
+        if (player.x < 0) player.x = canvas.width;
+        if (player.x > canvas.width) player.x = 0;
+        if (player.y < 0) player.y = canvas.height;
+        if (player.y > canvas.height) player.y = 0;
+
+        let prevX = player.x;
+        let prevY = player.y;
+        player.tail.forEach(seg => {
+            const dx = prevX - seg.x;
+            const dy = prevY - seg.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minSpace = 25;
+            if (dist > minSpace) {
+                const angle = Math.atan2(dy, dx);
+                seg.x = prevX - Math.cos(angle) * minSpace;
+                seg.y = prevY - Math.sin(angle) * minSpace;
+            }
+            prevX = seg.x;
+            prevY = seg.y;
+        });
+
+        items.forEach((item, i) => {
+            item.pulse += 0.05;
+            if (Math.hypot(player.x - item.x, player.y - item.y) < player.radius + item.size) {
+                items.splice(i, 1);
+                score += 10;
+                paintingCount += 1;
+                player.tail.push({ x: player.x, y: player.y });
+                scoreEl.innerText = score;
+                junkCountEl.innerText = paintingCount;
+                spawnItem();
+                spawnEnemy();
+                if (score >= 100) gameOver();
+            }
+        });
+
+        enemies.forEach((enemy, i) => {
+            enemy.x += enemy.vx;
+            enemy.y += enemy.vy;
+            enemy.rot += enemy.rotS;
+            if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < player.hitRadius + enemy.radius * 0.8) gameOver();
+            player.tail.forEach(seg => {
+                if (Math.hypot(seg.x - enemy.x, seg.y - enemy.y) < 10 + enemy.radius * 0.8) gameOver();
+            });
+            if (enemy.x < -100 || enemy.x > canvas.width + 100 || enemy.y < -100 || enemy.y > canvas.height + 100) {
+                enemies.splice(i, 1);
+                spawnEnemy();
+            }
+        });
+        if (Math.random() < 0.005) spawnEnemy();
+    }
+
+    function drawPainting(x, y, size, angle, alpha) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#8b5a2b";
+        ctx.fillRect(-size/2, -size/2 * 1.4, size, size * 1.4);
+        ctx.strokeStyle = "#d4af37";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-size/2, -size/2 * 1.4, size, size * 1.4);
+        ctx.fillStyle = "#fdf5e6";
+        ctx.fillRect(-size/2 + 3, -size/2 * 1.4 + 3, size - 6, size * 1.4 - 6);
+        ctx.fillStyle = "#3d2b1f";
+        ctx.beginPath();
+        ctx.arc(0, 0, size/4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
+    }
+
+    function drawAsinan(x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle + Math.PI/2); // 画像の向きに合わせて調整
+        if (asinanImg.complete && asinanImg.naturalWidth !== 0) {
+            const size = player.radius * 2;
+            ctx.drawImage(asinanImg, -size/2, -size/2, size, size);
+        } else {
+            // 代替描画（画像読み込み失敗時）
+            ctx.fillStyle = "#a67c52";
+            ctx.beginPath(); ctx.arc(0, 0, player.radius * 0.8, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function drawBomb(x, y, radius, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        if (bombImg.complete && bombImg.naturalWidth !== 0) {
+            const size = radius * 2.5; // 少し大きめに描画
+            ctx.drawImage(bombImg, -size/2, -size/2, size, size);
+        } else {
+            // 代替描画
+            ctx.fillStyle = "#2c3e50";
+            ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => {
+            ctx.fillStyle = `rgba(212, 175, 55, ${s.alpha})`;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+            ctx.fill();
+        });
+        items.forEach(item => {
+            const pulseSize = item.size + Math.sin(item.pulse) * 3;
+            drawPainting(item.x, item.y, pulseSize, item.rotation, 0.9);
+        });
+        enemies.forEach(e => drawBomb(e.x, e.y, e.radius, e.rot));
+        player.tail.forEach((seg, i) => {
+            drawPainting(seg.x, seg.y, 14, i * 0.1, Math.max(0.1, 0.8 - i*0.05));
+        });
+        drawAsinan(player.x, player.y, player.angle);
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+</script>
+</body>
+</html>
