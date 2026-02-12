@@ -79,7 +79,7 @@
         #clearImageContainer img {
             max-width: 100%;
             height: auto;
-            border: 3px solid #d4af37;
+            border: none; /* 枠線を削除 */
             border-radius: 5px;
         }
 
@@ -93,6 +93,11 @@
             border-radius: 3px;
             cursor: pointer;
             color: #f0e0d0;
+        }
+        
+        h2 {
+            margin-top: 0;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -129,11 +134,10 @@
     const mainBtn = document.getElementById('mainBtn');
 
     // 画像設定
-    const CLEAR_IMAGE_URL = "探索謎.png"; // ミッションクリア時の画像
+    const CLEAR_IMAGE_URL = "探索謎.png"; 
     const ACINAN_IMAGE_URL = "acinan.png";
     const BOMB_IMAGE_URL = "bomb.png";     
 
-    // 画像オブジェクトのプリロード
     const acinanImg = new Image();
     acinanImg.src = ACINAN_IMAGE_URL;
     const bombImg = new Image();
@@ -177,7 +181,7 @@
     }
 
     const setPress = (val) => { isPressing = val; };
-    window.addEventListener('touchstart', (e) => { setPress(true); if(gameActive) e.preventDefault(); }, { passive: false });
+    window.addEventListener('touchstart', (e) => { if(gameActive) e.preventDefault(); setPress(true); }, { passive: false });
     window.addEventListener('touchend', () => setPress(false));
     window.addEventListener('mousedown', () => setPress(true));
     window.addEventListener('mouseup', () => setPress(false));
@@ -231,7 +235,7 @@
         msgEl.style.display = 'block';
 
         if (score >= 150) {
-            msgTitle.innerText = "MISSION CLEAR!!"<br>"この画面を受付に見せよう！";
+            msgTitle.innerHTML = "MISSION CLEAR!!<br><span style='font-size: 14px;'>この画面を受付に見せよう！</span>";
             msgTitle.style.color = "#d4af37";
             msgText.style.display = 'none';
             clearImg.src = CLEAR_IMAGE_URL;
@@ -239,7 +243,7 @@
             mainBtn.innerText = "PLAY AGAIN";
         } else {
             msgTitle.innerText = "MISSION FAILED";
-            msgTitle.style.color = "#d4af37"; // 赤字から標準の黄色に修正
+            msgTitle.style.color = "#d4af37"; 
             msgText.innerHTML = "爆弾に接触した！<br>150pt集めるとクリアだよ。";
             msgText.style.display = 'block';
             clearImageContainer.style.display = 'none';
