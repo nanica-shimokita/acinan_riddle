@@ -114,7 +114,7 @@
             <img id="clearImg" src="" alt="Mission Clear Graphic">
         </div>
         <div id="msgTextContainer">
-            <p id="msgText">アシナンを操り、爆弾を避けて生き残ろう。<br>長押しで旋回できるよ。<br><br>1秒につき1pt増えるよ。<br>絵画を集めると10ptボーナス！<br>150ptでクリアだ！</p>
+            <p id="msgText">アシナンを操り、爆弾を避けて生き残ろう。<br>長押しで旋回できるよ。<br><br>1秒につき1pt増えるよ。<br>絵画を集めると10ptボーナス！<br>120ptでクリアだ！</p>
         </div>
         <button id="mainBtn" onclick="startGame()">MISSION START</button>
     </div>
@@ -244,7 +244,7 @@
         } else {
             msgTitle.innerText = "MISSION FAILED";
             msgTitle.style.color = "#d4af37"; 
-            msgText.innerHTML = "爆弾に接触した！<br>150pt集めるとクリアだよ。";
+            msgText.innerHTML = "爆弾に接触した！<br>120pt集めるとクリアだよ。";
             msgText.style.display = 'block';
             clearImageContainer.style.display = 'none';
             mainBtn.innerText = "RETRY";
@@ -259,7 +259,7 @@
             score += 1;
             lastTimeScore = now;
             scoreEl.innerText = score;
-            if (score >= 150) gameOver();
+            if (score >= 120) gameOver();
         }
 
         if (isPressing) player.angle += player.turnSpeed;
@@ -298,7 +298,7 @@
                 junkCountEl.innerText = paintingCount;
                 spawnItem();
                 spawnEnemy();
-                if (score >= 150) gameOver();
+                if (score >= 120) gameOver();
             }
         });
 
